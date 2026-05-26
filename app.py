@@ -1,28 +1,3 @@
-"""
-StockBot India — Premium AI-Powered Financial Research Assistant
-================================================================
-Tech Stack : Streamlit + Groq (LLaMA-3) + LangChain + yfinance + Plotly + SQLite + FPDF2
-APIs Used  : Yahoo Finance (yfinance) • NewsAPI.org • Groq LLM API
-Features   :
-  ✅ Real-time Indian & Global stock price lookup (NSE / BSE / US)
-  ✅ Interactive Candlestick + MA + Bollinger + Volume + RSI charts
-  ✅ AI-powered analysis chat (Groq / LLaMA-3.3-70b)
-  ✅ News sentiment analysis (TextBlob + NewsAPI)
-  ✅ Fundamental analysis (P/E, ROE, Debt-to-Equity, Dividend Yield)
-  ✅ Sector peer comparison dashboard
-  ✅ SQLite-backed persistent watchlist & portfolio tracker
-  ✅ One-click PDF research report export (FPDF2)
-  ✅ Indian market hours indicator (NSE/BSE: 9:15 AM – 3:30 PM IST)
-  ✅ INR formatting with Lakhs / Crores notation
-  ✅ SEBI compliance disclaimer
-BUG FIXES  :
-  ✓ st.chat_input() moved OUTSIDE st.tabs() (Streamlit constraint)
-  ✓ Ticker validation now allows full symbols like RELIANCE.NS (removed 10-char limit)
-  ✓ yfinance MultiIndex column flattening for all chart data
-  ✓ Groq tool-call format fixed — no more 'tool use failed' errors
-  ✓ Error handling for non-trading days and closed markets
-"""
-
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -45,9 +20,6 @@ from langchain_groq import ChatGroq
 import db_manager
 import pdf_generator
 
-# ──────────────────────────────────────────────────────────────
-# CONFIG & SETUP
-# ──────────────────────────────────────────────────────────────
 load_dotenv()
 db_manager.init_db()
 
@@ -61,9 +33,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ──────────────────────────────────────────────────────────────
-# PREMIUM CSS
-# ──────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
@@ -170,9 +139,6 @@ section[data-testid="stSidebar"] { background: rgba(10,15,28,0.97); }
 """, unsafe_allow_html=True)
 
 
-# ──────────────────────────────────────────────────────────────
-# CONSTANTS
-# ──────────────────────────────────────────────────────────────
 SECTOR_MAP = {
     "IT & Software":       ["TCS.NS","INFY.NS","WIPRO.NS","HCLTECH.NS"],
     "Banking & Finance":   ["HDFCBANK.NS","ICICIBANK.NS","SBIN.NS","AXISBANK.NS"],
@@ -186,6 +152,7 @@ ALIASES = {
     "tcs":"TCS.NS", "tata consultancy":"TCS.NS",
     "infosys":"INFY.NS", "infy":"INFY.NS",
     "wipro":"WIPRO.NS",
+
     "hdfc":"HDFCBANK.NS", "hdfc bank":"HDFCBANK.NS",
     "icici":"ICICIBANK.NS", "icici bank":"ICICIBANK.NS",
     "sbi":"SBIN.NS", "state bank":"SBIN.NS", "sbin":"SBIN.NS",
@@ -213,31 +180,24 @@ def resolve_ticker(name: str) -> str:
     if key in _ticker_cache:
         return _ticker_cache[key]
     result = ALIASES.get(key, name.strip().upper())
-    # Auto-append .NS for unrecognized non-US, non-index tickers
     if not any(result.endswith(s) for s in (".NS",".BO")) and not result.startswith("^") and result not in US_TICKERS:
         result = f"{result}.NS"
     _ticker_cache[key] = result
     return result
 
 
-# ──────────────────────────────────────────────────────────────
-# VALIDATION — FIXED: allow full symbols like RELIANCE.NS
-# ──────────────────────────────────────────────────────────────
+
 def validate_ticker(ticker: str):
     if not ticker or not isinstance(ticker, str):
         return False, "Invalid ticker format"
     ticker = ticker.strip()
     if not ticker:
         return False, "Ticker cannot be empty"
-    # Allow alphanumeric + ^, ., - characters (no length cap that breaks .NS symbols)
     if not all(c.isalnum() or c in ("^",".","-") for c in ticker):
         return False, "Invalid ticker characters"
     return True, ticker
 
 
-# ──────────────────────────────────────────────────────────────
-# RATE LIMITER
-# ──────────────────────────────────────────────────────────────
 class RateLimiter:
     def __init__(self, max_calls=15, time_window=60):
         self.max_calls   = max_calls
@@ -255,10 +215,6 @@ class RateLimiter:
 
 rate_limiter = RateLimiter(max_calls=15, time_window=60)
 
-
-# ──────────────────────────────────────────────────────────────
-# HELPERS
-# ──────────────────────────────────────────────────────────────
 def format_inr(number):
     """Format number in Indian numbering (₹ Lakhs/Crores style)."""
     if number is None:
@@ -302,9 +258,6 @@ def get_indian_market_status():
         return False, "Closed (Session ended)", now
 
 
-# ──────────────────────────────────────────────────────────────
-# TECHNICAL INDICATORS
-# ──────────────────────────────────────────────────────────────
 class TechnicalIndicators:
 
     @staticmethod
@@ -356,10 +309,6 @@ class TechnicalIndicators:
         if rsi >  30: return "📉 Bearish — Downward Pressure"
         return "✅ Oversold — Potential Reversal Zone"
 
-
-# ──────────────────────────────────────────────────────────────
-# NEWS SENTIMENT
-# ──────────────────────────────────────────────────────────────
 def analyze_sentiment(text: str):
     pol = TextBlob(str(text)).sentiment.polarity
     if pol > 0.1:  return "positive", pol
@@ -386,7 +335,6 @@ def get_news_sentiment(ticker: str, limit=5):
     except Exception:
         articles = None
 
-    # Mock if real data unavailable
     if not articles:
         mock_titles = [
             f"{ticker.split('.')[0]} posts steady revenue growth in Q4 results.",
@@ -418,9 +366,7 @@ def get_news_sentiment(ticker: str, limit=5):
     return {"status":"success","overall_sentiment":overall,"avg_polarity":round(avg,3),"articles":processed,"is_mock":False}
 
 
-# ──────────────────────────────────────────────────────────────
-# CACHED DATA FETCHERS
-# ──────────────────────────────────────────────────────────────
+
 @st.cache_data(ttl=120)
 def fetch_info(ticker: str) -> dict:
     try:
@@ -452,9 +398,6 @@ def fetch_history(ticker: str, period: str = "3mo") -> pd.DataFrame:
         return pd.DataFrame()
 
 
-# ──────────────────────────────────────────────────────────────
-# CORE ANALYSIS FUNCTIONS
-# ──────────────────────────────────────────────────────────────
 def _price(ticker_raw: str) -> str:
     valid, msg = validate_ticker(ticker_raw.strip())
     if not valid:
@@ -642,9 +585,6 @@ def _fundamental_analysis(ticker_raw: str) -> str:
     )
 
 
-# ──────────────────────────────────────────────────────────────
-# LANGCHAIN TOOLS
-# ──────────────────────────────────────────────────────────────
 @tool
 def get_stock_price(ticker: str) -> str:
     """Get live stock price, daily change, 52W range, market cap and P/E.
@@ -750,7 +690,6 @@ def run_agent(user_query: str) -> str:
 
     raw = "\n\n".join(tool_outputs) if tool_outputs else (response.content or "")
 
-    # Append a short summary from plain LLM
     if tool_outputs:
         try:
             summary_resp = _build_llm_plain().invoke(
@@ -786,14 +725,10 @@ def _fallback_direct(query: str) -> str:
     if any(w in q for w in ("fundamental","pe ratio","balance sheet","roe","debt")):
         t = candidates[0] if candidates else "RELIANCE.NS"
         return _fundamental_analysis(t)
-    # Default: price check
     t = candidates[0] if candidates else "RELIANCE.NS"
     return _price(t)
 
 
-# ──────────────────────────────────────────────────────────────
-# CHART RENDERER — FIXED column flattening
-# ──────────────────────────────────────────────────────────────
 def show_chart(ticker: str, period: str = "3mo"):
     df = fetch_history(ticker, period)
     if df.empty:
@@ -801,7 +736,6 @@ def show_chart(ticker: str, period: str = "3mo"):
                    "The market may be closed or the symbol may be invalid.")
         return
 
-    # Compute indicators
     df["MA20"]  = df["Close"].rolling(20).mean()
     df["MA50"]  = df["Close"].rolling(50).mean()
     df["MA200"] = df["Close"].rolling(200).mean()
@@ -821,7 +755,6 @@ def show_chart(ticker: str, period: str = "3mo"):
         vertical_spacing=0.05,
     )
 
-    # Candlestick
     fig.add_trace(go.Candlestick(
         x=date_col, open=df["Open"], high=df["High"],
         low=df["Low"], close=df["Close"], name="Price OHLC",
@@ -839,13 +772,11 @@ def show_chart(ticker: str, period: str = "3mo"):
                              line=dict(color="rgba(139,92,246,0)", width=0),
                              fill="tonexty", fillcolor="rgba(139,92,246,0.07)"), row=1, col=1)
 
-    # Volume
     bar_colors = ["#26a69a" if c >= o else "#ef5350"
                   for c, o in zip(df["Close"].fillna(0), df["Open"].fillna(0))]
     fig.add_trace(go.Bar(x=date_col, y=df["Volume"], name="Volume",
                          marker_color=bar_colors, opacity=0.55), row=2, col=1)
 
-    # RSI
     fig.add_trace(go.Scatter(x=date_col, y=df["RSI"], name="RSI (14)",
                              line=dict(color="#818cf8", width=2)), row=3, col=1)
     fig.add_hline(y=70, line_dash="dash", line_color="#ef5350", opacity=0.6, row=3, col=1)
@@ -872,9 +803,6 @@ def show_chart(ticker: str, period: str = "3mo"):
     st.plotly_chart(fig, use_container_width=True)
 
 
-# ──────────────────────────────────────────────────────────────
-# SESSION STATE INIT
-# ──────────────────────────────────────────────────────────────
 for k, v in [("messages",[]), ("chart_ticker","RELIANCE.NS"),
               ("chart_period","3mo"), ("active_tab","chart")]:
     if k not in st.session_state:
@@ -885,9 +813,6 @@ if "portfolio" not in st.session_state:
     st.session_state.portfolio = db_manager.get_portfolio()
 
 
-# ──────────────────────────────────────────────────────────────
-# HEADER
-# ──────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="main-header">
   <div class="main-title">📈 StockBot India</div>
@@ -902,10 +827,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-
-# ──────────────────────────────────────────────────────────────
-# SIDEBAR
-# ──────────────────────────────────────────────────────────────
 with st.sidebar:
     # Market clock
     is_open, status_text, ist_now = get_indian_market_status()
@@ -950,7 +871,6 @@ with st.sidebar:
                 st.session_state.messages.append({"role":"assistant","content":ans})
                 st.rerun()
 
-    # Chart controls in sidebar
     st.divider()
     st.markdown("### 📊 Chart Controls")
     sb_ticker = st.text_input("Ticker", value=st.session_state.chart_ticker, key="sb_chart_ticker")
@@ -979,9 +899,6 @@ with st.sidebar:
     st.caption("⚖️ **Disclaimer:** StockBot India provides technical research only. Not SEBI-registered investment advice. Always consult a certified financial advisor before investing.")
 
 
-# ──────────────────────────────────────────────────────────────
-# MAIN TABS
-# ──────────────────────────────────────────────────────────────
 tab_chart, tab_sector, tab_portfolio, tab_watchlist = st.tabs([
     "📈 Stock Research & Charts",
     "🔄 Sector Comparison",
@@ -989,9 +906,6 @@ tab_chart, tab_sector, tab_portfolio, tab_watchlist = st.tabs([
     "📋 Persistent Watchlist",
 ])
 
-# ════════════════════════════════════════════════════════
-# TAB 1 — Stock Research & Charts
-# ════════════════════════════════════════════════════════
 with tab_chart:
     st.subheader(f"📊 Technical Suite: {st.session_state.chart_ticker}")
 
@@ -1016,7 +930,6 @@ with tab_chart:
 
     st.divider()
 
-    # PDF export section
     col_pdf, col_tip = st.columns([1, 2])
     with col_pdf:
         st.markdown("#### 📄 Export PDF Report")
@@ -1063,9 +976,6 @@ History of TATAMOTORS.NS 6mo
     </div>""", unsafe_allow_html=True)
 
 
-# ════════════════════════════════════════════════════════
-# TAB 2 — Sector Comparison
-# ════════════════════════════════════════════════════════
 with tab_sector:
     st.subheader("🔄 Sector Peer Comparison Dashboard")
     st.caption("Compare industry peers across key Indian market sectors.")
@@ -1134,10 +1044,6 @@ with tab_sector:
     else:
         st.info("Could not load sector data — market may be closed.")
 
-
-# ════════════════════════════════════════════════════════
-# TAB 3 — Portfolio Manager
-# ════════════════════════════════════════════════════════
 with tab_portfolio:
     st.subheader("💼 Investment Portfolio Tracker")
 
@@ -1223,10 +1129,6 @@ with tab_portfolio:
         else:
             st.error("Please enter a ticker symbol.")
 
-
-# ════════════════════════════════════════════════════════
-# TAB 4 — Persistent Watchlist
-# ════════════════════════════════════════════════════════
 with tab_watchlist:
     st.subheader("📋 Stock Watchlist (SQLite Persistent)")
     wl = db_manager.get_watchlist()
@@ -1291,10 +1193,6 @@ with tab_watchlist:
                 st.error("Please enter a ticker symbol.")
 
 
-# ══════════════════════════════════════════════════════════════════
-# AI CHAT — OUTSIDE tabs (Streamlit requirement: chat_input
-# cannot live inside st.tabs / st.columns / st.expander / st.form)
-# ══════════════════════════════════════════════════════════════════
 st.divider()
 st.markdown("## 💬 Agent Analysis Chat")
 st.caption(
@@ -1302,7 +1200,6 @@ st.caption(
     "Powered by **Groq LLaMA-3.3-70b** with fallback direct analysis."
 )
 
-# Display existing messages
 chat_box = st.container()
 with chat_box:
     if not st.session_state.messages:
@@ -1314,7 +1211,6 @@ with chat_box:
             else:
                 st.write(msg["content"])
 
-# ── CRITICAL FIX: st.chat_input() placed at TOP-LEVEL (not inside any tab) ──
 if prompt := st.chat_input("Ask about stocks, technicals, news, comparisons…", key="main_chat_input"):
     st.session_state.messages.append({"role":"user","content":prompt})
     with st.chat_message("user"):
