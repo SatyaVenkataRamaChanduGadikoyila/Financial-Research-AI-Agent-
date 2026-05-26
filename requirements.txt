@@ -1,0 +1,15 @@
+streamlit>=1.35.0
+plotly>=5.22.0
+yfinance>=0.2.40
+pandas>=2.2.2
+numpy>=1.26.4
+langchain>=0.2.0
+langchain-core>=0.2.0
+langchain-groq>=0.1.6
+textblob>=0.18.0.post0
+vaderSentiment>=3.3.2
+requests>=2.32.3
+python-dotenv>=1.0.1
+fpdf2>=2.7.9
+pytz>=2024.1
+cachetools>=5.5.0
