@@ -636,12 +636,26 @@ TOOL_MAP = {
 }
 
 SYSTEM_PROMPT = """You are StockBot India — a professional financial AI assistant for NSE, BSE and global markets.
+
+IMPORTANT: Classify the user query into ONE of these categories:
+
+1. EDUCATIONAL/CONCEPTUAL QUERY (e.g., "What is NSE?", "Explain P/E ratio", "What does RSI mean?")
+   → RESPOND DIRECTLY with clear, beginner-friendly explanation
+   → DO NOT call any tools
+   → DO NOT fetch stock data
+   → Just provide educational information
+
+2. DATA REQUEST QUERY (e.g., "Price of RELIANCE", "Technical analysis of TCS", "Compare AAPL and MSFT")
+   → Call EXACTLY ONE appropriate tool
+   → After getting results, provide a 2-sentence analytical summary
+
 RULES:
-1. Call exactly ONE tool per user query.
-2. Never give direct buy/sell advice. Provide objective data and indicators.
-3. After tool results, write a brief 2-sentence analytical summary.
+1. If unsure, ask yourself: "Is the user asking FOR A CONCEPT/DEFINITION?" → No tools
+2. If unsure, ask yourself: "Is the user asking FOR STOCK DATA/ANALYSIS?" → Call one tool
+3. Never give direct buy/sell advice. Provide objective data and indicators.
 4. Auto-resolve: reliance→RELIANCE.NS, tcs→TCS.NS, sbi→SBIN.NS, hdfc→HDFCBANK.NS.
-5. Always respond in clear, structured format."""
+5. Always respond in clear, structured format.
+6. NEVER call tools for educational queries - just answer directly."""
 
 
 @st.cache_resource
@@ -674,19 +688,23 @@ def run_agent(user_query: str) -> str:
     messages.append(response)
     tool_outputs = []
 
-    if response.tool_calls:
-        for tc in response.tool_calls:
-            name = tc.get("name","")
-            args = tc.get("args", {})
-            if name in TOOL_MAP:
-                try:
-                    result = TOOL_MAP[name](args)
-                except Exception as e2:
-                    result = f"❌ Tool error: {e2}"
-            else:
-                result = f"❌ Unknown tool: {name}"
-            tool_outputs.append(result)
-            messages.append(ToolMessage(content=result, tool_call_id=tc["id"]))
+    # If agent decides NO tools are needed (educational query), return direct answer
+    if not response.tool_calls:
+        return response.content or "Analysis complete."
+
+    # Process tool calls if any
+    for tc in response.tool_calls:
+        name = tc.get("name","")
+        args = tc.get("args", {})
+        if name in TOOL_MAP:
+            try:
+                result = TOOL_MAP[name](args)
+            except Exception as e2:
+                result = f"❌ Tool error: {e2}"
+        else:
+            result = f"❌ Unknown tool: {name}"
+        tool_outputs.append(result)
+        messages.append(ToolMessage(content=result, tool_call_id=tc["id"]))
 
     raw = "\n\n".join(tool_outputs) if tool_outputs else (response.content or "")
 
@@ -816,14 +834,7 @@ if "portfolio" not in st.session_state:
 st.markdown("""
 <div class="main-header">
   <div class="main-title">📈 StockBot India</div>
-  <div class="sub-title">Premium SEBI-Compliant AI Financial Research Assistant for NSE · BSE · Global Markets</div>
-  <div class="api-badges">
-    <span class="api-badge green">✅ Yahoo Finance (yfinance)</span>
-    <span class="api-badge">📰 NewsAPI.org</span>
-    <span class="api-badge purple">🤖 Groq LLM (LLaMA-3.3-70b)</span>
-    <span class="api-badge green">🗄️ SQLite Persistence</span>
-    <span class="api-badge">📄 FPDF2 PDF Export</span>
-  </div>
+
 </div>
 """, unsafe_allow_html=True)
 
@@ -1120,7 +1131,8 @@ with tab_portfolio:
                 info2 = fetch_info(rt)
                 if info2.get("currentPrice") or info2.get("regularMarketPrice"):
                     s, m2 = db_manager.add_to_portfolio(rt, add_q, add_p, add_d.strftime("%Y-%m-%d"))
-                    st.success(m2) if s else st.error(m2)
+                    if s: st.success(m2)
+                    else: st.error(m2)
                     if s: st.rerun()
                 else:
                     st.error(f"❌ No live data for '{rt}'. Check ticker symbol.")
@@ -1183,7 +1195,8 @@ with tab_watchlist:
                     tinfo = fetch_info(rt)
                     if tinfo.get("currentPrice") or tinfo.get("regularMarketPrice"):
                         s, m3 = db_manager.add_to_watchlist(rt)
-                        st.success(m3) if s else st.warning(m3)
+                        if s: st.success(m3)
+                        else: st.warning(m3)
                         if s: st.rerun()
                     else:
                         st.error(f"No market data for '{rt}'. Check the symbol.")
