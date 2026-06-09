@@ -300,5 +300,5 @@ def generate_pdf_report(ticker, info, rsi_val, rsi_interpretation, mas, sentimen
     )
     pdf.multi_cell(0, 4, disclaimer_text)
     
-    # Output bytes
-    return pdf.output()
+    # Output bytes (convert bytearray to bytes for compatibility)
+    return bytes(pdf.output())
