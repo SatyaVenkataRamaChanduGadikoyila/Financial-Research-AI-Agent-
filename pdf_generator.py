@@ -4,8 +4,8 @@ import pandas as pd
 import numpy as np
 import re
 import os
+import io
 
-# Default font used; may be replaced at runtime if a Unicode TTF is available
 FONT_NAME = 'helvetica'
 
 
@@ -30,7 +30,6 @@ def try_register_unicode_font(pdf: FPDF):
                 return
             except Exception:
                 continue
-    # If no TTF found, leave FONT_NAME as helvetica
 
 class StockReportPDF(FPDF):
     def header(self):
@@ -103,7 +102,6 @@ def format_inr_pdf(val):
         return f"Rs. {val}"
 
 
-# Remove characters unsupported by default PDF font (e.g., emojis).
 _EMOJI_PATTERN = re.compile('[\U00010000-\U0010FFFF]', flags=re.UNICODE)
 
 def sanitize_text(s: str) -> str:
@@ -300,5 +298,9 @@ def generate_pdf_report(ticker, info, rsi_val, rsi_interpretation, mas, sentimen
     )
     pdf.multi_cell(0, 4, disclaimer_text)
     
-    # Output bytes (convert bytearray to bytes for compatibility)
-    return bytes(pdf.output())
+    # Generate PDF and return as bytes
+    # fpdf2's output() returns bytearray, so explicitly convert to bytes
+    pdf_data = pdf.output()
+    if isinstance(pdf_data, bytearray):
+        return bytes(pdf_data)
+    return pdf_data

@@ -957,6 +957,9 @@ with tab_chart:
                 sent   = get_news_sentiment(active, limit=4)
                 try:
                     pdf_bytes = pdf_generator.generate_pdf_report(active, info, rsi_v, rsi_i, mas, sent)
+                    # Ensure pdf_bytes is bytes type, not bytearray
+                    if isinstance(pdf_bytes, bytearray):
+                        pdf_bytes = bytes(pdf_bytes)
                     st.download_button(
                         "📥 Download PDF Report",
                         data=pdf_bytes,
