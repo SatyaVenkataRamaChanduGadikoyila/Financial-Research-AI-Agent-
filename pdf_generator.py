@@ -33,28 +33,24 @@ def try_register_unicode_font(pdf: FPDF):
 
 class StockReportPDF(FPDF):
     def header(self):
-        # Top banner background
         self.set_fill_color(30, 41, 59)  # deep slate
         self.rect(0, 0, 210, 32, 'F')
         
-        # White text for title
         self.set_text_color(255, 255, 255)
         self.set_font(FONT_NAME, 'B', 16)
         self.set_y(6)
         self.cell(0, 8, 'STOCKBOT INDIA - RESEARCH REPORT', ln=1, align='C')
         
-        # Subtitle
         self.set_font(FONT_NAME, 'I', 10)
         self.cell(0, 6, f'Generated on {datetime.now().strftime("%d %B %Y, %I:%M %p IST")}', ln=1, align='C')
         self.ln(12)
         
     def footer(self):
-        # Position at 1.5 cm from bottom
         self.set_y(-15)
         self.set_font(FONT_NAME, 'I', 8)
         self.set_text_color(128, 128, 128)
         
-        # Draw a line above footer
+
         self.set_draw_color(200, 200, 200)
         self.line(10, 280, 200, 280)
         
@@ -63,7 +59,7 @@ class StockReportPDF(FPDF):
     def chapter_title(self, label):
         self.set_font(FONT_NAME, 'B', 12)
         self.set_text_color(30, 41, 59)
-        self.set_fill_color(241, 245, 249) # light gray background
+        self.set_fill_color(241, 245, 249) 
         self.cell(0, 8, f"  {label}", ln=1, fill=True)
         self.ln(3)
 
@@ -110,7 +106,6 @@ def sanitize_text(s: str) -> str:
         return ""
     if not isinstance(s, str):
         s = str(s)
-    # Normalize common punctuation to ASCII equivalents
     replacements = {
         '\u2014': '-',  # em dash
         '\u2013': '-',  # en dash
@@ -119,7 +114,6 @@ def sanitize_text(s: str) -> str:
     }
     for k, v in replacements.items():
         s = s.replace(k, v)
-    # Remove emoji / unsupported high-plane characters
     s = _EMOJI_PATTERN.sub('', s)
     return s
 
@@ -131,13 +125,9 @@ def generate_pdf_report(ticker, info, rsi_val, rsi_interpretation, mas, sentimen
     """
     pdf = StockReportPDF()
     pdf.alias_nb_pages()
-    # Try to register a Unicode TTF font; if available, FONT_NAME will be updated
     try_register_unicode_font(pdf)
     pdf.add_page()
-    
-    # ----------------------------------------------------
-    # SECTION 1: Company Profile & Core Metrics
-    # ----------------------------------------------------
+
     name = info.get("longName") or info.get("shortName") or ticker
     sector = info.get("sector", "N/A")
     industry = info.get("industry", "N/A")
@@ -147,7 +137,6 @@ def generate_pdf_report(ticker, info, rsi_val, rsi_interpretation, mas, sentimen
     day_change = price - prev_close
     day_change_pct = (day_change / prev_close * 100) if prev_close else 0
     
-    # Sanitize incoming text to avoid emoji/font issues
     name = sanitize_text(name)
     sector = sanitize_text(sector)
     industry = sanitize_text(industry)
@@ -156,7 +145,6 @@ def generate_pdf_report(ticker, info, rsi_val, rsi_interpretation, mas, sentimen
     
     pdf.chapter_title(f"1. Executive Overview: {name} ({ticker})")
     
-    # Grid of details
     pdf.set_font(FONT_NAME, '', 10)
     pdf.set_text_color(51, 65, 85)
     
@@ -179,9 +167,6 @@ def generate_pdf_report(ticker, info, rsi_val, rsi_interpretation, mas, sentimen
     
     pdf.ln(4)
     
-    # ----------------------------------------------------
-    # SECTION 2: Fundamental Valuation
-    # ----------------------------------------------------
     pdf.chapter_title("2. Fundamental Analysis & Valuation")
     
     mkt_cap = info.get('marketCap')
@@ -214,9 +199,6 @@ def generate_pdf_report(ticker, info, rsi_val, rsi_interpretation, mas, sentimen
     
     pdf.ln(6)
     
-    # ----------------------------------------------------
-    # SECTION 3: Technical Indicators
-    # ----------------------------------------------------
     pdf.chapter_title("3. Technical Indicator Status")
     
     pdf.set_font(FONT_NAME, 'B', 10)
@@ -225,14 +207,12 @@ def generate_pdf_report(ticker, info, rsi_val, rsi_interpretation, mas, sentimen
     pdf.cell(65, 6, "Signal / Interpretation", border=1, align='C', ln=1)
     
     pdf.set_font(FONT_NAME, '', 9)
-    # RSI row
     rsi_str = f"{rsi_val:.2f}" if rsi_val is not None else "N/A"
     pdf.cell(60, 6, "Relative Strength Index (RSI 14)", border=1, align='C', ln=0)
     pdf.cell(65, 6, rsi_str, border=1, align='C', ln=0)
     rsi_text = sanitize_text(rsi_interpretation or "N/A")
     pdf.cell(65, 6, rsi_text, border=1, align='C', ln=1)
     
-    # MA rows
     for ma_name, ma_val in mas.items():
         ma_label = ma_name.upper().replace('MA', 'Moving Average ')
         val_str = format_inr_pdf(ma_val) if currency == 'INR' else f"{ma_val:,.2f}" if ma_val else "N/A"
@@ -246,10 +226,7 @@ def generate_pdf_report(ticker, info, rsi_val, rsi_interpretation, mas, sentimen
         pdf.cell(65, 6, signal, border=1, align='C', ln=1)
         
     pdf.ln(6)
-    
-    # ----------------------------------------------------
-    # SECTION 4: News & Sentiment Trends
-    # ----------------------------------------------------
+
     pdf.chapter_title("4. Sentiment & News Catalyst Analysis")
     
     status = sentiment.get("status")
@@ -279,10 +256,7 @@ def generate_pdf_report(ticker, info, rsi_val, rsi_interpretation, mas, sentimen
         pdf.cell(0, 6, "Live News Sentiment is currently in Demo mode or NewsAPI is unconfigured.", ln=1)
         
     pdf.ln(8)
-    
-    # ----------------------------------------------------
-    # SECTION 5: Compliance & Investment Disclaimer
-    # ----------------------------------------------------
+ 
     pdf.chapter_title("5. Regulatory Compliance & Disclaimer")
     
     pdf.set_font(FONT_NAME, 'I', 8)
@@ -298,8 +272,7 @@ def generate_pdf_report(ticker, info, rsi_val, rsi_interpretation, mas, sentimen
     )
     pdf.multi_cell(0, 4, disclaimer_text)
     
-    # Generate PDF and return as bytes
-    # fpdf2's output() returns bytearray, so explicitly convert to bytes
+
     pdf_data = pdf.output()
     if isinstance(pdf_data, bytearray):
         return bytes(pdf_data)

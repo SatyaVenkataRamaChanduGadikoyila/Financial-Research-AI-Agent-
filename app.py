@@ -384,11 +384,9 @@ def fetch_history(ticker: str, period: str = "3mo") -> pd.DataFrame:
             df = yf.download(ticker, period="1mo", progress=False, auto_adjust=True)
         if df is None:
             return pd.DataFrame()
-        # ── FIX: flatten MultiIndex columns produced by newer yfinance versions ──
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
         df = df.reset_index()
-        # Rename 'Datetime' or 'index' to 'Date' uniformly
         if "Datetime" in df.columns:
             df = df.rename(columns={"Datetime": "Date"})
         if "Date" not in df.columns and df.columns[0] not in ("Date",):
@@ -682,17 +680,14 @@ def run_agent(user_query: str) -> str:
         llm      = _build_llm()
         response = llm.invoke(messages)
     except Exception as e:
-        # Graceful fallback: run tool locally without LLM
         return _fallback_direct(user_query)
 
     messages.append(response)
     tool_outputs = []
 
-    # If agent decides NO tools are needed (educational query), return direct answer
     if not response.tool_calls:
         return response.content or "Analysis complete."
 
-    # Process tool calls if any
     for tc in response.tool_calls:
         name = tc.get("name","")
         args = tc.get("args", {})
@@ -983,7 +978,6 @@ History of TATAMOTORS.NS 6mo
 ```
         """)
 
-    # Disclaimer
     st.markdown("""<div class="disclaimer-box">
     ⚖️ <strong>Regulatory Disclaimer:</strong> StockBot India provides technical indicators and market data for informational purposes only.
     This is NOT investment advice. Past performance does not guarantee future results. Consult a SEBI-registered financial advisor before investing.

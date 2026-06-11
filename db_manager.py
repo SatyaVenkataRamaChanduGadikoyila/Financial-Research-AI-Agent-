@@ -15,7 +15,6 @@ def init_db():
     conn = get_connection()
     cursor = conn.cursor()
     
-    # Watchlist Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS watchlist (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,7 +23,6 @@ def init_db():
         )
     """)
     
-    # Portfolio Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS portfolio (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,7 +35,6 @@ def init_db():
     
     conn.commit()
     
-    # Insert default watchlist items if empty
     cursor.execute("SELECT COUNT(*) FROM watchlist")
     if cursor.fetchone()[0] == 0:
         default_watchlist = ["RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "SBIN.NS"]
