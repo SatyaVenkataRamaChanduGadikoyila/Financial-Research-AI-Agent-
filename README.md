@@ -218,7 +218,7 @@ streamlit run app.py
 Open:
 
 ```text
-http://localhost:8501
+https://yjykp3q4x7esyzhuoxa58p.streamlit.app/
 ```
 
 ---
